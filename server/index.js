@@ -8,7 +8,12 @@ import path from "path";
 import fs from "fs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const dataDir = path.join(__dirname, "..", "data");
+const defaultDataDir = path.join(__dirname, "..", "data");
+const dataDir = process.env.DB_DIR
+  ? path.resolve(process.env.DB_DIR)
+  : process.env.RAILWAY_VOLUME_MOUNT_PATH
+    ? path.join(process.env.RAILWAY_VOLUME_MOUNT_PATH)
+    : defaultDataDir;
 const distDir = path.join(__dirname, "..", "dist");
 fs.mkdirSync(dataDir, { recursive: true });
 
