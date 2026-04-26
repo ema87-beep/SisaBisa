@@ -1,59 +1,86 @@
-## Deploy ke Railway
+## SisaBisa Online: Supabase + Railway
 
-Project ini sudah disiapkan untuk Railway.
+Project ini sekarang memakai:
+
+- frontend React/Vite
+- backend Node/Express
+- database PostgreSQL
+
+Rekomendasi paling aman:
+
+- database di Supabase
+- app di Railway
 
 ### 1. Push code terbaru ke GitHub
 
 ```bash
 git add .
-git commit -m "Prepare Railway deploy"
+git commit -m "Prepare Supabase + Railway deploy"
 git push
 ```
 
-### 2. Buat project di Railway
+### 2. Buat project Supabase
 
-1. Login ke Railway
+1. Login ke [Supabase](https://supabase.com/)
+2. Klik `New project`
+3. Isi nama project
+4. Isi database password
+5. Tunggu project jadi
+
+### 3. Ambil `DATABASE_URL`
+
+Menurut dokumentasi Supabase, connection string ada di tombol `Connect` pada dashboard project. Untuk aplikasi server yang berjalan terus, kamu bisa memakai direct connection atau session pooler; kalau environment kamu butuh IPv4, pakai pooler session mode. Sumber: [Supabase connection strings](https://supabase.com/docs/reference/postgres/connection-strings)
+
+Format umumnya:
+
+```text
+postgresql://USER:PASSWORD@HOST:PORT/DBNAME
+```
+
+### 4. Deploy app ke Railway dari GitHub
+
+1. Login ke [Railway](https://railway.app/)
 2. Klik `New Project`
 3. Pilih `Deploy from GitHub repo`
 4. Pilih repo `SisaBisa`
 
-### 3. Tambahkan volume untuk SQLite
+### 5. Tambahkan variables di Railway
 
-Karena project ini masih pakai SQLite, kamu harus menambahkan volume supaya data tidak hilang saat deploy ulang.
-
-1. Buka service project di Railway
-2. Masuk ke tab `Settings`
-3. Cari `Volumes`
-4. Tambah volume baru
-5. Mount path yang dipakai:
+Di tab `Variables`, tambahkan:
 
 ```text
-/data
-```
-
-Server akan otomatis menyimpan database SQLite ke volume Railway kalau mount path tersedia.
-
-### 4. Tambahkan environment variable
-
-Di Railway, buka tab `Variables`, lalu tambahkan:
-
-```text
+DATABASE_URL=isi-connection-string-dari-supabase
 JWT_SECRET=isi-rahasia-bebas
-DB_DIR=/data
 ```
 
-`DB_DIR=/data` dipakai supaya file SQLite tersimpan di volume Railway.
+Menurut dokumentasi Railway, variables dimasukkan dari tab `Variables` dan perubahan perlu di-deploy agar aktif. Sumber: [Railway Variables](https://docs.railway.com/variables)
 
-### 5. Deploy
+### 6. Deploy ulang
 
-Setelah repo terhubung dan variables sudah diisi:
+Setelah variables disimpan:
 
-1. Trigger deploy
-2. Tunggu build selesai
-3. Buka domain Railway yang diberikan
+1. review perubahan di Railway
+2. deploy
 
-### 6. Catatan
+Railway akan:
 
-- UI dan alur website tetap sama
-- Data lebih aman dibanding Render free tanpa disk
-- Project ini tetap prototype; backup code tetap penting
+- install dependency
+- build frontend
+- start server Node
+
+### 7. Cek website online
+
+Tes:
+
+- daftar akun pembeli baru
+- login merchant yang sudah ada
+- ubah lokasi toko
+- tambah/edit produk
+- checkout
+- review
+
+### 8. Catatan penting
+
+- halaman login sekarang kosong, tidak menampilkan akun demo
+- akun merchant seed tetap ada di database dan tetap bisa dipakai
+- user umum bisa daftar sendiri dari website

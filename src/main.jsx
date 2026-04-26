@@ -39,7 +39,8 @@ import "./styles.css";
 
 const API = import.meta.env.VITE_API_URL || "/api";
 const rupiah = (value) => new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(value);
-const categories = ["Semua", "Roti Manis", "Roti Asin", "Pastry", "Cake & Dessert", "Snack & Light Bites", "Mystery Box"];
+const categories = ["Semua", "Sweet Bites", "Savory Bites", "Pastry", "Cake & Dessert"];
+const priceRanges = ["Semua", "10.000 - 20.000", "20.000 - 30.000", "30.000 - 40.000", "40.000 - 50.000"];
 const landingPages = ["landing", "landing-how", "landing-store", "landing-about"];
 const authPages = ["auth-login", "auth-register-user", "auth-register-merchant"];
 const paymentMethods = [
@@ -68,16 +69,9 @@ const fallbackImage = "https://images.unsplash.com/photo-1517433670267-08bbd4be8
 const locations = [
   { id: "jakarta", label: "Jakarta, Indonesia" },
   { id: "bandung", label: "Bandung, Indonesia" },
+  { id: "malang", label: "Malang, Indonesia" },
   { id: "surabaya", label: "Surabaya, Indonesia" }
 ];
-const merchantLocationMap = {
-  "Surprise Bakery": "jakarta",
-  "Bima Bakehouse": "bandung",
-  "Ayu Sourdough Studio": "bandung",
-  "Roti Bahagia Bakery": "jakarta",
-  "Golden Crust": "surabaya",
-  "FreshMart Express": "jakarta"
-};
 const landingNavItems = [
   { id: "landing", label: "Beranda" },
   { id: "landing-how", label: "Cara Kerja" },
@@ -147,12 +141,12 @@ function readImageFile(file) {
 }
 
 function distanceOf(product, locationId) {
-  const offset = locationId === "jakarta" ? 0 : locationId === "bandung" ? 0.9 : 1.8;
+  const offset = locationId === "jakarta" ? 0 : locationId === "bandung" ? 0.9 : locationId === "malang" ? 1.2 : 1.8;
   return Number((0.8 + ((product.id * 7) % 23) / 10 + offset).toFixed(1));
 }
 
 function merchantLocationId(product) {
-  return merchantLocationMap[product.merchant_name] || "jakarta";
+  return product.location_id || "jakarta";
 }
 
 function locationLabelById(locationId) {
@@ -171,7 +165,7 @@ function App() {
   const [cart, setCart] = useState(JSON.parse(localStorage.getItem("cart") || "[]"));
   const [favorites, setFavorites] = useState(JSON.parse(localStorage.getItem("favorites") || "[]"));
   const [search, setSearch] = useState("");
-  const [filters, setFilters] = useState({ category: "Semua", under50: false, sort: "Terbaru", distance: "Semua" });
+  const [filters, setFilters] = useState({ category: "Semua", priceRange: "Semua", sort: "Terbaru", distance: "Semua" });
   const [page, setPage] = useState("landing");
   const [selectedProductId, setSelectedProductId] = useState(null);
   const [selectedOrderId, setSelectedOrderId] = useState(null);
@@ -236,6 +230,12 @@ function App() {
     if (token) loadOrders();
   }, [token]);
 
+  useEffect(() => {
+    if (user?.role === "merchant" && user.location_id) {
+      setLocationId(user.location_id);
+    }
+  }, [user?.id, user?.role, user?.location_id]);
+
   const selectedProduct = products.find((product) => product.id === selectedProductId) || null;
   const selectedOrder = orders.find((order) => order.id === selectedOrderId) || null;
   const lastOrder = orders.find((order) => order.id === lastOrderId) || null;
@@ -246,13 +246,14 @@ function App() {
 
   const filteredProducts = useMemo(() => {
     const q = search.trim().toLowerCase();
-    let list = [...products];
+    let list = products.filter((product) => merchantLocationId(product) === locationId);
     if (filters.category !== "Semua") {
-      list = filters.category === "Mystery Box"
-        ? list.filter((product) => product.is_mystery)
-        : list.filter((product) => product.category === filters.category);
+      list = list.filter((product) => product.category === filters.category);
     }
-    if (filters.under50) list = list.filter((product) => product.price < 50000);
+    if (filters.priceRange === "10.000 - 20.000") list = list.filter((product) => product.price >= 10000 && product.price <= 20000);
+    if (filters.priceRange === "20.000 - 30.000") list = list.filter((product) => product.price >= 20000 && product.price <= 30000);
+    if (filters.priceRange === "30.000 - 40.000") list = list.filter((product) => product.price >= 30000 && product.price <= 40000);
+    if (filters.priceRange === "40.000 - 50.000") list = list.filter((product) => product.price >= 40000 && product.price <= 50000);
     if (filters.distance === "< 2 km") list = list.filter((product) => distanceOf(product, locationId) < 2);
     if (filters.distance === "< 5 km") list = list.filter((product) => distanceOf(product, locationId) < 5);
     if (q) {
@@ -274,12 +275,36 @@ function App() {
   const saveSession = ({ user: nextUser, token: nextToken }) => {
     setUser(nextUser);
     setToken(nextToken);
+    if (nextUser?.role === "merchant" && nextUser.location_id) {
+      setLocationId(nextUser.location_id);
+    }
     localStorage.setItem("user", JSON.stringify(nextUser));
     localStorage.setItem("token", nextToken);
     setUserSection("home");
     setMerchantSection("dashboard");
     setPage(nextUser.role === "merchant" ? "merchant-dashboard" : "explore");
     notify(`Halo, ${nextUser.name}`);
+  };
+
+  const updateMerchantProfile = async (payload) => {
+    const response = await authedFetch(`${API}/me`, {
+      method: "PUT",
+      body: JSON.stringify(payload)
+    });
+    setUser(response.user);
+    setLocationId(payload.locationId || "jakarta");
+    localStorage.setItem("user", JSON.stringify(response.user));
+    setProducts((current) => current.map((product) => (
+      product.merchant_id === response.user.id
+        ? {
+            ...product,
+            merchant_name: response.user.merchant_name || response.user.name,
+            location_id: response.user.location_id || payload.locationId || "jakarta"
+          }
+        : product
+    )));
+    await loadProducts();
+    notify("Lokasi toko berhasil diperbarui");
   };
 
   const logout = () => {
@@ -490,6 +515,7 @@ function App() {
       {page === "detail" && selectedProduct && (
         <DetailPage
           product={selectedProduct}
+          locationId={locationId}
           addToCart={addToCart}
           toggleFavorite={toggleFavorite}
           isFavorite={favorites.includes(selectedProduct.id)}
@@ -564,7 +590,7 @@ function App() {
         <SettingsPage role="user" user={user} goBack={() => setPage("user-dashboard")} />
       )}
       {page === "merchant-settings" && user?.role === "merchant" && (
-        <SettingsPage role="merchant" user={user} goBack={() => setPage("merchant-dashboard")} />
+        <SettingsPage role="merchant" user={user} goBack={() => setPage("merchant-dashboard")} saveMerchantProfile={updateMerchantProfile} />
       )}
     </div>
   );
@@ -703,7 +729,7 @@ function LandingPage({ setPage, setFilters, setExplorePage }) {
             <p>SisaBisa membantu kamu menemukan rescue box bakery dengan pickup cepat, harga hemat, dan stok yang terus bergerak.</p>
             <div className="landing-actions">
               <button className="primary-btn" onClick={() => setExplorePage()}>Cari Makanan</button>
-              <button className="ghost-btn" onClick={() => { setFilters({ category: "Semua", under50: false, sort: "Terdekat", distance: "< 2 km" }); setExplorePage(); }}>Lihat Terdekat</button>
+              <button className="ghost-btn" onClick={() => { setFilters({ category: "Semua", priceRange: "Semua", sort: "Terdekat", distance: "< 2 km" }); setExplorePage(); }}>Lihat Terdekat</button>
             </div>
           </div>
           <div className="landing-image-card landing-image-dark-card">
@@ -869,16 +895,9 @@ function ExplorePage({ products, search, setSearch, filters, setFilters, openPro
 
       <section className="filter-bar">
         <label className="filter-field">
-          <span>Jenis Makanan</span>
-          <select value={filters.category} onChange={(event) => setFilters({ ...filters, category: event.target.value })}>
-            {categories.map((category) => <option key={category}>{category}</option>)}
-          </select>
-        </label>
-        <label className="filter-field">
           <span>Harga</span>
-          <select value={filters.under50 ? "Di bawah 50rb" : "Semua"} onChange={(event) => setFilters({ ...filters, under50: event.target.value === "Di bawah 50rb" })}>
-            <option>Semua</option>
-            <option>Di bawah 50rb</option>
+          <select value={filters.priceRange} onChange={(event) => setFilters({ ...filters, priceRange: event.target.value })}>
+            {priceRanges.map((range) => <option key={range}>{range}</option>)}
           </select>
         </label>
         <label className="filter-field">
@@ -941,7 +960,7 @@ function ExplorePage({ products, search, setSearch, filters, setFilters, openPro
               <div className="listing-price">
                 <div>
                   <strong>{rupiah(product.price)}</strong>
-                  <small>{rupiah(Math.round(product.price * 1.6))}</small>
+                  <small>{rupiah(product.estimated_value || product.price)}</small>
                 </div>
                 <div className="listing-actions">
                   <button className="ghost-btn tiny-btn" onClick={() => openProduct(product.id)}>Detail</button>
@@ -957,7 +976,7 @@ function ExplorePage({ products, search, setSearch, filters, setFilters, openPro
   );
 }
 
-function DetailPage({ product, addToCart, toggleFavorite, isFavorite, goBack }) {
+function DetailPage({ product, locationId, addToCart, toggleFavorite, isFavorite, goBack }) {
   return (
     <main className="shell detail-page">
       <button className="back-link" onClick={goBack}><ArrowLeft size={18} /> Kembali</button>
@@ -980,7 +999,7 @@ function DetailPage({ product, addToCart, toggleFavorite, isFavorite, goBack }) 
           </div>
           <div className="detail-meta-row">
             <span><Star size={14} /> {product.avg_rating || "Baru"} ({product.review_count || 0})</span>
-            <span><MapPin size={14} /> {distanceOf(product, "jakarta")} km</span>
+            <span><MapPin size={14} /> {distanceOf(product, locationId)} km</span>
           </div>
           <div className="soft-card">
             <strong>Kemungkinan isi:</strong>
@@ -994,13 +1013,13 @@ function DetailPage({ product, addToCart, toggleFavorite, isFavorite, goBack }) 
           <div className="price-card">
             <div>
               <strong>{rupiah(product.price)}</strong>
-              <small>{rupiah(Math.round(product.price * 1.6))}</small>
+              <small>{rupiah(product.estimated_value || product.price)}</small>
             </div>
             <span className="green-badge">Hemat 37%</span>
           </div>
           <div className="soft-card compact-stack">
             <span><Clock3 size={16} /> Ambil di toko: Hari ini, 15:00 - 20:00</span>
-            <span><MapPin size={16} /> Lokasi toko: Jl. Kemang Raya No. 15, Jakarta</span>
+            <span><MapPin size={16} /> Lokasi toko: {locationLabelById(merchantLocationId(product))}</span>
             <span><ShoppingBag size={16} /> Sisa stok: {product.stock} box</span>
           </div>
           <button className="primary-btn full-btn" onClick={() => addToCart(product)}>Tambah ke Keranjang</button>
@@ -1123,8 +1142,8 @@ function AuthPage({ mode, initialRole, saveSession, notify, setPage }) {
   const [role, setRole] = useState(initialRole);
   const [form, setForm] = useState({
     name: "",
-    email: initialRole === "merchant" ? "merchant@sisabisa.test" : "user@sisabisa.test",
-    password: "password123",
+    email: "",
+    password: "",
     merchantName: ""
   });
 
@@ -1137,7 +1156,13 @@ function AuthPage({ mode, initialRole, saveSession, notify, setPage }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...form, role })
       });
-      const data = await response.json();
+      const raw = await response.text();
+      let data = {};
+      try {
+        data = raw ? JSON.parse(raw) : {};
+      } catch {
+        throw new Error("Server belum siap atau respons login tidak valid");
+      }
       if (!response.ok) throw new Error(data.error || "Gagal login");
       saveSession(data);
     } catch (error) {
@@ -1155,8 +1180,8 @@ function AuthPage({ mode, initialRole, saveSession, notify, setPage }) {
           </h2>
         </div>
         <div className="segmented-control">
-          <button type="button" className={role === "user" ? "active" : ""} onClick={() => { setRole("user"); setForm((current) => ({ ...current, email: "user@sisabisa.test" })); if (mode === "register") setPage("auth-register-user"); }}>Pembeli</button>
-          <button type="button" className={role === "merchant" ? "active" : ""} onClick={() => { setRole("merchant"); setForm((current) => ({ ...current, email: "merchant@sisabisa.test" })); if (mode === "register") setPage("auth-register-merchant"); }}>Merchant</button>
+          <button type="button" className={role === "user" ? "active" : ""} onClick={() => { setRole("user"); if (mode === "register") setPage("auth-register-user"); }}>Pembeli</button>
+          <button type="button" className={role === "merchant" ? "active" : ""} onClick={() => { setRole("merchant"); if (mode === "register") setPage("auth-register-merchant"); }}>Merchant</button>
         </div>
         {mode === "register" ? <input placeholder="Nama" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /> : null}
         {mode === "register" && role === "merchant" ? <input placeholder="Nama Toko" value={form.merchantName} onChange={(event) => setForm({ ...form, merchantName: event.target.value })} /> : null}
@@ -1629,7 +1654,7 @@ function OrderReviewForm({ item, submitReview }) {
 function ProductForm({ product, close, save }) {
   const [form, setForm] = useState({
     name: product?.name || "",
-    category: product?.category || "Roti Manis",
+    category: product?.category || "Sweet Bites",
     price: product?.price || 25000,
     estimatedValue: product?.estimated_value || product?.price || 35000,
     stock: product?.stock || 10,
@@ -1670,7 +1695,7 @@ function ProductForm({ product, close, save }) {
         <p className="helper-note">Gunakan upload foto dari perangkat. Link foto tidak dipakai di form ini.</p>
         <textarea placeholder="Deskripsi produk" value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} />
         <label className="switch-line">
-          <input type="checkbox" checked={form.isMystery} onChange={(event) => setForm({ ...form, isMystery: event.target.checked, category: event.target.checked ? "Mystery Box" : form.category })} />
+          <input type="checkbox" checked={form.isMystery} onChange={(event) => setForm({ ...form, isMystery: event.target.checked })} />
           Mystery Box
         </label>
         <div className="modal-actions product-form-actions">
@@ -1682,8 +1707,10 @@ function ProductForm({ product, close, save }) {
   );
 }
 
-function SettingsPage({ role, user, goBack }) {
+function SettingsPage({ role, user, goBack, saveMerchantProfile }) {
   const items = policyContent[role];
+  const [merchantName, setMerchantName] = useState(user?.merchant_name || user?.name || "");
+  const [storeLocationId, setStoreLocationId] = useState(user?.location_id || "jakarta");
   return (
     <main className="shell settings-page">
       <button className="back-link" onClick={goBack}><ArrowLeft size={18} /> Kembali</button>
@@ -1695,6 +1722,25 @@ function SettingsPage({ role, user, goBack }) {
           </div>
           <span className="green-badge">{role === "merchant" ? "Merchant" : "Pembeli"}</span>
         </div>
+        {role === "merchant" ? (
+          <form
+            className="settings-card merchant-settings-form"
+            onSubmit={async (event) => {
+              event.preventDefault();
+              await saveMerchantProfile({ merchantName, locationId: storeLocationId });
+            }}
+          >
+            <h3>Pengaturan Toko</h3>
+            <p>Ubah nama tampilan toko dan lokasi toko langsung dari dashboard.</p>
+            <input value={merchantName} onChange={(event) => setMerchantName(event.target.value)} placeholder="Nama toko" />
+            <select value={storeLocationId} onChange={(event) => setStoreLocationId(event.target.value)}>
+              {locations.map((location) => <option key={location.id} value={location.id}>{location.label}</option>)}
+            </select>
+            <div className="modal-actions">
+              <button className="primary-btn" type="submit"><Save size={16} /> Simpan Lokasi Toko</button>
+            </div>
+          </form>
+        ) : null}
         <div className="settings-grid">
           {Object.entries(items).map(([title, paragraphs]) => (
             <article key={title} className="settings-card">
