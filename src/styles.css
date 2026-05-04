@@ -1020,6 +1020,30 @@ img { display: block; max-width: 100%; }
   gap: 12px;
 }
 
+.support-insight-grid,
+.satisfaction-grid {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.satisfaction-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.smart-support-card textarea {
+  min-height: 100px;
+}
+
+.satisfaction-item {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.support-stats {
+  margin-top: 14px;
+}
+
 .payment-row {
   min-height: 52px;
   padding: 0 14px;

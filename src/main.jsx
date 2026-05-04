@@ -65,6 +65,11 @@ const refundLabels = {
   approved: "Refund disetujui",
   rejected: "Refund ditolak"
 };
+const satisfactionLabels = {
+  day1: "Hari ke-1",
+  day7: "Hari ke-7",
+  day30: "Hari ke-30"
+};
 const fallbackImage = "https://images.unsplash.com/photo-1517433670267-08bbd4be890f?auto=format&fit=crop&w=900&q=85";
 const locations = [
   { id: "jakarta", label: "Jakarta, Indonesia" },
@@ -400,6 +405,24 @@ function App() {
     notify("Refund berhasil diajukan");
   };
 
+  const submitDispute = async (orderId, payload) => {
+    await authedFetch(`${API}/orders/${orderId}/dispute`, {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+    await loadOrders();
+    notify("AI Support sudah memberi keputusan awal");
+  };
+
+  const submitSatisfaction = async (orderId, payload) => {
+    await authedFetch(`${API}/orders/${orderId}/satisfaction`, {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+    await loadOrders();
+    notify("Tracking kepuasan berhasil disimpan");
+  };
+
   const updateRefundStatus = async (orderId, refundStatus) => {
     await authedFetch(`${API}/orders/${orderId}/refund-status`, {
       method: "PUT",
@@ -546,6 +569,8 @@ function App() {
           openProduct={openProduct}
           markReceived={markReceived}
           requestRefund={requestRefund}
+          submitDispute={submitDispute}
+          submitSatisfaction={submitSatisfaction}
           submitReview={submitReview}
           goBack={() => setPage(user?.role === "merchant" ? "merchant-dashboard" : "user-dashboard")}
           userRole={user?.role}
@@ -1395,6 +1420,10 @@ function MerchantDashboard({ user, products, orders, allProducts, openOrder, ope
   const merchantReviews = products
     .filter((product) => product.review_count)
     .sort((a, b) => b.review_count - a.review_count);
+  const smartDisputes = orders.flatMap((order) => (order.disputes || []).map((dispute) => ({ ...dispute, orderId: order.id })));
+  const satisfactionAverage = orders.flatMap((order) => order.satisfaction || []).length
+    ? orders.flatMap((order) => order.satisfaction || []).reduce((sum, entry) => sum + Number(entry.score || 0), 0) / orders.flatMap((order) => order.satisfaction || []).length
+    : 0;
   const sidebarItems = [
     { label: "Dashboard", icon: LayoutDashboard, active: section === "dashboard", onClick: () => openSection("dashboard") },
     { label: "Produk Saya", icon: Package, active: section === "products", onClick: () => openSection("products") },
@@ -1543,14 +1572,20 @@ function MerchantDashboard({ user, products, orders, allProducts, openOrder, ope
               <article><strong>{products.reduce((sum, product) => sum + (product.review_count || 0), 0)}</strong><span>Total Review</span></article>
               <article><strong>{rupiah(orders.reduce((sum, order) => sum + order.total, 0))}</strong><span>Pendapatan Kotor</span></article>
             </div>
+            <div className="stats-strip merchant-stats support-stats">
+              <article><strong>{smartDisputes.length}</strong><span>Kasus Smart Support</span></article>
+              <article><strong>{smartDisputes.filter((item) => item.resolution_type === "full_refund").length}</strong><span>Auto Refund Penuh</span></article>
+              <article><strong>{smartDisputes.filter((item) => item.resolution_type === "partial_refund" || item.resolution_type === "voucher").length}</strong><span>Solusi Cepat AI</span></article>
+              <article><strong>{satisfactionAverage ? satisfactionAverage.toFixed(1) : "0.0"}</strong><span>True Satisfaction Score</span></article>
+            </div>
           </section>
         ) : null}
 
         {section === "ulasan" ? (
           <section className="dashboard-card">
             <div className="section-head">
-              <h3>Ulasan Produk</h3>
-              <span className="status-badge">Klik produk untuk lihat detail</span>
+              <h3>Ulasan & Smart Support</h3>
+              <span className="status-badge">Klik produk atau cek insight sengketa</span>
             </div>
             <div className="merchant-review-grid">
               {merchantReviews.length ? merchantReviews.map((product) => (
@@ -1563,6 +1598,15 @@ function MerchantDashboard({ user, products, orders, allProducts, openOrder, ope
                 </button>
               )) : <p className="empty-text">Belum ada ulasan untuk toko ini.</p>}
             </div>
+            <div className="support-insight-grid">
+              {smartDisputes.length ? smartDisputes.map((dispute) => (
+                <article key={dispute.id} className="settings-card">
+                  <strong>Pesanan #{dispute.orderId}</strong>
+                  <p>{dispute.ai_decision}</p>
+                  <span className="status-badge">{dispute.resolution_type}</span>
+                </article>
+              )) : <p className="empty-text">Belum ada kasus AI support untuk toko ini.</p>}
+            </div>
           </section>
         ) : null}
       </section>
@@ -1572,8 +1616,9 @@ function MerchantDashboard({ user, products, orders, allProducts, openOrder, ope
   );
 }
 
-function OrderDetailPage({ order, openProduct, markReceived, requestRefund, submitReview, goBack, userRole, updateRefundStatus }) {
+function OrderDetailPage({ order, openProduct, markReceived, requestRefund, submitDispute, submitSatisfaction, submitReview, goBack, userRole, updateRefundStatus }) {
   const [refundReason, setRefundReason] = useState("");
+  const activeDispute = order.disputes?.[0] || null;
 
   return (
     <main className="shell order-detail-page">
@@ -1605,6 +1650,17 @@ function OrderDetailPage({ order, openProduct, markReceived, requestRefund, subm
         ) : null}
         {userRole === "user" && order.status === "Completed" ? (
           <div className="refund-section">
+            <DigitalGuaranteeCard order={order} />
+            <SmartSupportCard order={order} submitDispute={submitDispute} />
+            {activeDispute ? (
+              <article className="settings-card">
+                <strong>Keputusan Awal AI</strong>
+                <p>{activeDispute.ai_decision}</p>
+                <p>{activeDispute.resolution_note}</p>
+                <span className="green-badge">{activeDispute.resolution_type}</span>
+              </article>
+            ) : null}
+            <SatisfactionTracker order={order} submitSatisfaction={submitSatisfaction} />
             <div className="soft-card">
               <strong>Refund & Return</strong>
               <p>Ajukan refund jika produk rusak, tidak aman, atau berbeda jauh dari deskripsi merchant.</p>
@@ -1624,6 +1680,82 @@ function OrderDetailPage({ order, openProduct, markReceived, requestRefund, subm
         ) : null}
       </section>
     </main>
+  );
+}
+
+function DigitalGuaranteeCard({ order }) {
+  const deadline = new Date(new Date(order.created_at).getTime() + 2 * 24 * 60 * 60 * 1000);
+  const active = Date.now() < deadline.getTime();
+  return (
+    <article className="settings-card">
+      <strong>Garansi Digital Otomatis</strong>
+      <p>Sistem menyimpan tanggal beli, status pesanan, dan proteksi klaim tanpa perlu struk manual.</p>
+      <div className="compact-stack">
+        <span><ShieldCheck size={16} /> {active ? "Proteksi masih aktif" : "Proteksi sudah berakhir"}</span>
+        <span><Clock3 size={16} /> Batas klaim: {deadline.toLocaleString("id-ID")}</span>
+      </div>
+    </article>
+  );
+}
+
+function SmartSupportCard({ order, submitDispute }) {
+  const [severity, setSeverity] = useState("ringan");
+  const [reason, setReason] = useState("");
+  const [evidencePhoto, setEvidencePhoto] = useState("");
+
+  return (
+    <form className="settings-card smart-support-card" onSubmit={async (event) => {
+      event.preventDefault();
+      await submitDispute(order.id, { severity, reason, evidencePhoto });
+      setReason("");
+      setEvidencePhoto("");
+    }}>
+      <strong>Chat Support Pintar (AI Dispute Resolver)</strong>
+      <p>Ceritakan masalah pesanan, upload bukti, lalu sistem memberi keputusan awal secara otomatis.</p>
+      <select value={severity} onChange={(event) => setSeverity(event.target.value)}>
+        <option value="sesuai">Pesanan sesuai</option>
+        <option value="ringan">Ada masalah kecil</option>
+        <option value="serius">Ada masalah serius</option>
+      </select>
+      <textarea placeholder="Tulis masalah pesanan atau kronologi singkat" value={reason} onChange={(event) => setReason(event.target.value)} />
+      <label className="upload-pill"><Camera size={16} /> Upload Bukti<input type="file" accept="image/*" onChange={async (event) => setEvidencePhoto(await readImageFile(event.target.files?.[0]))} /></label>
+      {evidencePhoto ? <img className="review-upload-preview" src={evidencePhoto} alt="Bukti komplain" /> : null}
+      <button className="primary-btn" type="submit">Minta Analisis AI</button>
+    </form>
+  );
+}
+
+function SatisfactionTracker({ order, submitSatisfaction }) {
+  const saved = Object.fromEntries((order.satisfaction || []).map((entry) => [entry.checkpoint, entry]));
+  const [answers, setAnswers] = useState({
+    day1: saved.day1?.answer || "",
+    day7: saved.day7?.answer || "",
+    day30: saved.day30?.answer || ""
+  });
+  const [scores, setScores] = useState({
+    day1: saved.day1?.score || 5,
+    day7: saved.day7?.score || 5,
+    day30: saved.day30?.score || 5
+  });
+
+  return (
+    <article className="settings-card">
+      <strong>Tracking Kepuasan Setelah Pembelian</strong>
+      <p>Sistem memantau pengalaman pembeli secara bertahap, bukan hanya dari rating instan.</p>
+      <div className="satisfaction-grid">
+        {["day1", "day7", "day30"].map((checkpoint) => (
+          <form key={checkpoint} className="soft-card satisfaction-item" onSubmit={async (event) => {
+            event.preventDefault();
+            await submitSatisfaction(order.id, { checkpoint, answer: answers[checkpoint], score: scores[checkpoint] });
+          }}>
+            <strong>{satisfactionLabels[checkpoint]}</strong>
+            <input value={answers[checkpoint]} onChange={(event) => setAnswers({ ...answers, [checkpoint]: event.target.value })} placeholder="Tulis pengalaman kamu" />
+            <input type="number" min="1" max="5" value={scores[checkpoint]} onChange={(event) => setScores({ ...scores, [checkpoint]: event.target.value })} />
+            <button className="ghost-btn tiny-btn">Simpan</button>
+          </form>
+        ))}
+      </div>
+    </article>
   );
 }
 

@@ -247,6 +247,31 @@ async function initDb() {
       UNIQUE(user_id, product_id)
     );
 
+    CREATE TABLE IF NOT EXISTS disputes (
+      id BIGSERIAL PRIMARY KEY,
+      order_id BIGINT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+      user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      severity TEXT NOT NULL,
+      reason TEXT NOT NULL,
+      evidence_photo TEXT,
+      ai_decision TEXT NOT NULL,
+      resolution_type TEXT NOT NULL,
+      resolution_note TEXT NOT NULL,
+      status TEXT DEFAULT 'auto_resolved',
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS satisfaction_logs (
+      id BIGSERIAL PRIMARY KEY,
+      order_id BIGINT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+      user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      checkpoint TEXT NOT NULL,
+      answer TEXT NOT NULL,
+      score INTEGER NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(order_id, checkpoint)
+    );
+
     CREATE UNIQUE INDEX IF NOT EXISTS idx_products_merchant_name
     ON products (merchant_id, name);
   `);
@@ -330,6 +355,36 @@ async function auth(req, res, next) {
 function merchantOnly(req, res, next) {
   if (req.user.role !== "merchant") return res.status(403).json({ error: "Merchant access required" });
   next();
+}
+
+function disputeDecision(severity, reason, evidencePhoto) {
+  const text = String(reason || "").toLowerCase();
+  if (severity === "serius") {
+    if (evidencePhoto && /(rusak|basi|jamur|tidak sesuai|salah)/.test(text)) {
+      return {
+        ai_decision: "Refund penuh direkomendasikan berdasarkan bukti dan alasan yang diajukan.",
+        resolution_type: "full_refund",
+        resolution_note: "Sistem mendeteksi masalah berat pada kualitas atau kesesuaian pesanan."
+      };
+    }
+    return {
+      ai_decision: "Refund sebagian direkomendasikan sambil menunggu tinjauan merchant.",
+      resolution_type: "partial_refund",
+      resolution_note: "Masalah serius terdeteksi, tetapi bukti belum cukup kuat untuk refund penuh otomatis."
+    };
+  }
+  if (severity === "ringan") {
+    return {
+      ai_decision: "Voucher kompensasi atau refund sebagian direkomendasikan.",
+      resolution_type: "voucher",
+      resolution_note: "Sistem membaca kendala ringan yang masih bisa diselesaikan cepat tanpa sengketa panjang."
+    };
+  }
+  return {
+    ai_decision: "Pesanan terkonfirmasi sesuai. Tidak ada resolusi finansial yang diperlukan.",
+    resolution_type: "no_action",
+    resolution_note: "Evaluasi pembeli menunjukkan pesanan diterima dengan baik."
+  };
 }
 
 const productSelect = `
@@ -545,9 +600,13 @@ app.get("/api/orders", auth, async (req, res) => {
   const payload = [];
   for (const order of orders) {
     const items = (await query("SELECT * FROM order_items WHERE order_id = $1", [order.id])).rows;
+    const disputes = (await query("SELECT * FROM disputes WHERE order_id = $1 ORDER BY created_at DESC", [order.id])).rows;
+    const satisfaction = (await query("SELECT * FROM satisfaction_logs WHERE order_id = $1 ORDER BY created_at ASC", [order.id])).rows;
     payload.push({
       ...order,
-      items: items.map((item) => ({ ...item, product_snapshot: item.product_snapshot }))
+      items: items.map((item) => ({ ...item, product_snapshot: item.product_snapshot })),
+      disputes,
+      satisfaction
     });
   }
   res.json(payload);
@@ -612,6 +671,50 @@ app.post("/api/reviews", auth, async (req, res) => {
     [req.user.id, productId, Math.max(1, Math.min(5, Number(rating))), comment, photo || null]
   );
   res.json({ ok: true });
+});
+
+app.post("/api/orders/:id/dispute", auth, async (req, res) => {
+  if (req.user.role !== "user") return res.status(403).json({ error: "Akses pembeli diperlukan" });
+  const { severity, reason, evidencePhoto } = req.body;
+  const order = await one("SELECT * FROM orders WHERE id = $1 AND user_id = $2", [req.params.id, req.user.id]);
+  if (!order) return res.status(404).json({ error: "Pesanan tidak ditemukan" });
+  if (order.status !== "Completed") return res.status(400).json({ error: "Evaluasi sengketa hanya tersedia setelah pesanan diterima" });
+  if (!severity || !reason) return res.status(400).json({ error: "Severity dan alasan wajib diisi" });
+
+  const decision = disputeDecision(severity, reason, evidencePhoto);
+  const dispute = await one(
+    `INSERT INTO disputes (order_id,user_id,severity,reason,evidence_photo,ai_decision,resolution_type,resolution_note,status)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+     RETURNING *`,
+    [req.params.id, req.user.id, severity, reason, evidencePhoto || null, decision.ai_decision, decision.resolution_type, decision.resolution_note, "auto_resolved"]
+  );
+
+  if (decision.resolution_type === "full_refund") {
+    await query("UPDATE orders SET refund_status = $1, refund_reason = $2 WHERE id = $3", ["approved", reason, req.params.id]);
+  } else if (decision.resolution_type === "partial_refund" || decision.resolution_type === "voucher") {
+    await query("UPDATE orders SET refund_status = $1, refund_reason = $2 WHERE id = $3", ["requested", reason, req.params.id]);
+  }
+
+  res.json(dispute);
+});
+
+app.post("/api/orders/:id/satisfaction", auth, async (req, res) => {
+  if (req.user.role !== "user") return res.status(403).json({ error: "Akses pembeli diperlukan" });
+  const { checkpoint, answer, score } = req.body;
+  const order = await one("SELECT * FROM orders WHERE id = $1 AND user_id = $2", [req.params.id, req.user.id]);
+  if (!order) return res.status(404).json({ error: "Pesanan tidak ditemukan" });
+  if (order.status !== "Completed") return res.status(400).json({ error: "Tracking kepuasan aktif setelah pesanan selesai" });
+  if (!checkpoint || !answer) return res.status(400).json({ error: "Checkpoint dan jawaban wajib diisi" });
+
+  const log = await one(
+    `INSERT INTO satisfaction_logs (order_id,user_id,checkpoint,answer,score)
+     VALUES ($1,$2,$3,$4,$5)
+     ON CONFLICT (order_id, checkpoint)
+     DO UPDATE SET answer = EXCLUDED.answer, score = EXCLUDED.score, created_at = NOW()
+     RETURNING *`,
+    [req.params.id, req.user.id, checkpoint, answer, Math.max(1, Math.min(5, Number(score || 5)))]
+  );
+  res.json(log);
 });
 
 if (fs.existsSync(distDir)) {
