@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   BadgeCheck,
   Bell,
+  Bot,
   Building2,
   Camera,
   ChevronDown,
@@ -24,15 +25,18 @@ import {
   QrCode,
   Save,
   Search,
+  SendHorizontal,
   Settings,
   ShieldCheck,
   ShoppingBag,
+  Sparkles,
   Star,
   Store,
   Truck,
   User,
   Wallet,
-  WalletCards
+  WalletCards,
+  X
 } from "lucide-react";
 import brandLogo from "./assets/sisabisa-logo-new.png";
 import "./styles.css";
@@ -52,6 +56,290 @@ const paymentMethods = [
   { id: "Transfer Bank", label: "Transfer Bank", icon: Building2 },
   { id: "Kartu Debit/Kredit", label: "Kartu", icon: CreditCard }
 ];
+
+const fallbackProducts = [
+  {
+    id: 101,
+    merchant_id: 2,
+    merchant_name: "Ayu Sourdough Studio",
+    verified: true,
+    location_id: "bandung",
+    name: "Cloud Milk Bun",
+    category: "Sweet Bites",
+    price: 18000,
+    estimated_value: 26000,
+    stock: 18,
+    image: "https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=900&q=85",
+    description: "Roti susu lembut isi krim vanila dan taburan almond.",
+    avg_rating: 4.8,
+    review_count: 21,
+    is_mystery: false
+  },
+  {
+    id: 102,
+    merchant_id: 2,
+    merchant_name: "Ayu Sourdough Studio",
+    verified: true,
+    location_id: "bandung",
+    name: "Surprise Bakery Box",
+    category: "Pastry",
+    price: 39000,
+    estimated_value: 85000,
+    stock: 10,
+    image: "https://images.unsplash.com/photo-1517433670267-08bbd4be890f?auto=format&fit=crop&w=900&q=85",
+    description: "Box berisi aneka roti & pastry dengan isi acak yang masih segar.",
+    avg_rating: 4.9,
+    review_count: 34,
+    is_mystery: true
+  },
+  {
+    id: 103,
+    merchant_id: 3,
+    merchant_name: "Bima Bakehouse",
+    verified: false,
+    location_id: "bandung",
+    name: "Banana Choco Danish",
+    category: "Pastry",
+    price: 28000,
+    estimated_value: 39000,
+    stock: 11,
+    image: "https://images.unsplash.com/photo-1519676867240-f03562e64548?auto=format&fit=crop&w=900&q=85",
+    description: "Danish pisang cokelat dari toko baru, belum terverifikasi.",
+    avg_rating: 4.4,
+    review_count: 11,
+    is_mystery: false
+  },
+  {
+    id: 104,
+    merchant_id: 4,
+    merchant_name: "Bahagia Bakery",
+    verified: true,
+    location_id: "malang",
+    name: "Mystery Cake Box",
+    category: "Cake & Dessert",
+    price: 50000,
+    estimated_value: 75000,
+    stock: 6,
+    image: "https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=900&q=85",
+    description: "Estimasi isi: kue ulang tahun random desain.",
+    avg_rating: 4.9,
+    review_count: 18,
+    is_mystery: true
+  },
+  {
+    id: 105,
+    merchant_id: 4,
+    merchant_name: "Bahagia Bakery",
+    verified: true,
+    location_id: "malang",
+    name: "Mystery Box Manis",
+    category: "Cake & Dessert",
+    price: 15000,
+    estimated_value: 25000,
+    stock: 9,
+    image: "https://images.unsplash.com/photo-1488477181946-6428a0291777?auto=format&fit=crop&w=900&q=85",
+    description: "Estimasi isi: pudding, brownies, tiramisu cake.",
+    avg_rating: 4.7,
+    review_count: 16,
+    is_mystery: true
+  },
+  {
+    id: 106,
+    merchant_id: 5,
+    merchant_name: "Ngemil Yuk",
+    verified: false,
+    location_id: "malang",
+    name: "Mystery Snack Box",
+    category: "Savory Bites",
+    price: 2500,
+    estimated_value: 5000,
+    stock: 14,
+    image: "https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=900&q=85",
+    description: "Estimasi isi: risol, lemper, martabak mini, lumpia.",
+    avg_rating: 4.5,
+    review_count: 9,
+    is_mystery: true
+  },
+  {
+    id: 107,
+    merchant_id: 6,
+    merchant_name: "Donut Bliss",
+    verified: false,
+    location_id: "malang",
+    name: "Mystery Box Manis",
+    category: "Sweet Bites",
+    price: 11000,
+    estimated_value: 18000,
+    stock: 12,
+    image: "https://images.unsplash.com/photo-1551024601-bec78aea704b?auto=format&fit=crop&w=900&q=85",
+    description: "Estimasi isi: donat berbagai topping, bomboloni, cromboloni.",
+    avg_rating: 4.6,
+    review_count: 13,
+    is_mystery: true
+  }
+];
+
+const localFallbackAccounts = {
+  "user@sisabisa.test": {
+    id: 1,
+    name: "Dina",
+    email: "user@sisabisa.test",
+    role: "user",
+    merchant_name: null,
+    location_id: "jakarta",
+    verified: false
+  },
+  "merchant@sisabisa.test": {
+    id: 2,
+    name: "Ayu Sourdough",
+    email: "merchant@sisabisa.test",
+    role: "merchant",
+    merchant_name: "Ayu Sourdough Studio",
+    location_id: "bandung",
+    verified: true
+  },
+  "merchant2@sisabisa.test": {
+    id: 3,
+    name: "Bima Bakehouse",
+    email: "merchant2@sisabisa.test",
+    role: "merchant",
+    merchant_name: "Bima Bakehouse",
+    location_id: "bandung",
+    verified: false
+  },
+  "bahagia@sisabisa.test": {
+    id: 4,
+    name: "Bahagia Bakery",
+    email: "bahagia@sisabisa.test",
+    role: "merchant",
+    merchant_name: "Bahagia Bakery",
+    location_id: "malang",
+    verified: true
+  },
+  "ngemilyuk@sisabisa.test": {
+    id: 5,
+    name: "Ngemil Yuk",
+    email: "ngemilyuk@sisabisa.test",
+    role: "merchant",
+    merchant_name: "Ngemil Yuk",
+    location_id: "malang",
+    verified: false
+  },
+  "donutbliss@sisabisa.test": {
+    id: 6,
+    name: "Donut Bliss",
+    email: "donutbliss@sisabisa.test",
+    role: "merchant",
+    merchant_name: "Donut Bliss",
+    location_id: "malang",
+    verified: false
+  }
+};
+
+const safeParseJSON = (value, fallback) => {
+  try {
+    return value ? JSON.parse(value) : fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+const protectedPages = ["checkout", "success", "order-detail", "user-dashboard", "merchant-dashboard", "user-settings", "merchant-settings"];
+
+function predictDisputeDecision(severity, reason, evidencePhoto) {
+  const text = String(reason || "").toLowerCase();
+  if (severity === "serius") {
+    if (evidencePhoto && /(rusak|basi|jamur|tidak sesuai|salah)/.test(text)) {
+      return {
+        label: "Refund penuh",
+        tone: "success",
+        note: "AI membaca ada masalah berat dan bukti yang cukup kuat untuk refund penuh."
+      };
+    }
+    return {
+      label: "Refund sebagian",
+      tone: "warning",
+      note: "AI mendeteksi masalah serius, tetapi masih butuh validasi tambahan dari merchant."
+    };
+  }
+  if (severity === "ringan") {
+    return {
+      label: "Voucher / refund sebagian",
+      tone: "neutral",
+      note: "AI menyarankan solusi cepat tanpa proses sengketa yang panjang."
+    };
+  }
+  return {
+    label: "Pesanan sesuai",
+    tone: "success",
+    note: "AI menilai pesanan aman dan tidak perlu resolusi finansial."
+  };
+}
+
+function buildAssistantReply(message, { user, orders, products, locationId }) {
+  const text = String(message || "").toLowerCase();
+  const orderPool = Array.isArray(orders) ? orders : [];
+  const productPool = Array.isArray(products) ? products : [];
+  const visibleProducts = productPool.filter((product) => merchantLocationId(product) === locationId);
+
+  if (/halo|hai|hi|hello|permisi/.test(text)) {
+    return "Halo, aku SisaBisa Assistant. Aku bisa bantu cek pesanan, kasih rekomendasi, jelasin pembayaran, refund, dan pertanyaan umum lainnya.";
+  }
+
+  if (/pesanan|order|status/.test(text)) {
+    if (!user) {
+      return "Untuk cek pesanan, login dulu ya. Setelah itu aku bisa bantu baca status pesanan terakhir atau pesanan yang butuh tindakan.";
+    }
+
+    if (!orderPool.length) {
+      return user.role === "merchant"
+        ? "Saat ini belum ada pesanan masuk di tokomu. Coba cek lagi setelah ada order baru dari pembeli."
+        : "Belum ada pesanan di akunmu. Kamu bisa mulai dari halaman Explore lalu tambah produk ke keranjang.";
+    }
+
+    const latestOrders = orderPool
+      .slice(0, 3)
+      .map((order) => `#${order.id} - ${order.status} (${order.pickup_code || "tanpa kode pickup"})`)
+      .join("\n");
+
+    return user.role === "merchant"
+      ? `Ini ringkasan pesanan toko kamu sekarang:\n${latestOrders}\nKalau mau, lanjut tanya "refund" atau "komplain" juga bisa.`
+      : `Ini ringkasan pesanan terakhirmu:\n${latestOrders}\nKalau ada masalah, kamu juga bisa buka detail pesanan lalu gunakan AI dispute resolver.`;
+  }
+
+  if (/rekomendasi|sarankan|saran|mau beli|manis|asin|pastry|cake/.test(text)) {
+    let pool = visibleProducts;
+    if (/manis|sweet/.test(text)) pool = pool.filter((product) => product.category === "Sweet Bites");
+    if (/asin|savory/.test(text)) pool = pool.filter((product) => product.category === "Savory Bites");
+    if (/pastry/.test(text)) pool = pool.filter((product) => product.category === "Pastry");
+    if (/cake|dessert/.test(text)) pool = pool.filter((product) => product.category === "Cake & Dessert");
+
+    const picks = pool
+      .slice()
+      .sort((a, b) => (b.avg_rating || 0) - (a.avg_rating || 0) || a.price - b.price)
+      .slice(0, 3);
+
+    if (!picks.length) {
+      return `Aku belum nemu rekomendasi yang cocok di ${locationLabelById(locationId)}. Coba ganti lokasi atau kasih kata kunci yang lebih spesifik, misalnya pastry atau cake.`;
+    }
+
+    return `Coba lihat ini di ${locationLabelById(locationId)}:\n${picks.map((product) => `- ${product.name} dari ${product.merchant_name} (${rupiah(product.price)})`).join("\n")}`;
+  }
+
+  if (/refund|retur|komplain|masalah|dispute/.test(text)) {
+    return "Kalau pesanan sudah diterima tapi ada masalah, buka detail pesanan lalu pilih AI Dispute Resolver. Sistem bisa kasih keputusan awal seperti refund penuh, refund sebagian, atau voucher kompensasi.";
+  }
+
+  if (/qris|ovo|dana|gopay|shopeepay|pembayaran|bayar/.test(text)) {
+    return "Metode pembayaran yang tersedia saat ini: QRIS, OVO, DANA, GoPay, ShopeePay, Transfer Bank, dan Kartu Debit/Kredit. Khusus QRIS, nanti akan muncul kode pembayaran di halaman checkout.";
+  }
+
+  if (/lokasi|jakarta|bandung|malang|surabaya/.test(text)) {
+    return `Lokasi aktif kamu sekarang ${locationLabelById(locationId)}. Produk di Explore akan otomatis menyesuaikan lokasi toko yang dipilih merchant di Pengaturan Toko.`;
+  }
+
+  return "Aku bisa bantu untuk cek pesanan, kasih rekomendasi produk, jelasin pembayaran, refund, atau cara kerja website. Coba tanya dengan kata kunci seperti 'pesanan saya', 'rekomendasi pastry', atau 'cara refund'.";
+}
 const statusLabels = {
   Reserved: "Dipesan",
   Preparing: "Diproses",
@@ -163,24 +451,29 @@ function nextLocation(locationId) {
 }
 
 function App() {
-  const [token, setToken] = useState(localStorage.getItem("token") || "");
-  const [user, setUser] = useState(JSON.parse(localStorage.getItem("user") || "null"));
+  const [token, setToken] = useState(() => localStorage.getItem("token") || "");
+  const [user, setUser] = useState(() => safeParseJSON(localStorage.getItem("user"), null));
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
-  const [cart, setCart] = useState(JSON.parse(localStorage.getItem("cart") || "[]"));
-  const [favorites, setFavorites] = useState(JSON.parse(localStorage.getItem("favorites") || "[]"));
-  const [search, setSearch] = useState("");
+  const [cart, setCart] = useState(() => safeParseJSON(localStorage.getItem("cart"), []));
+  const [favorites, setFavorites] = useState(() => safeParseJSON(localStorage.getItem("favorites"), []));
+  const [search, setSearch] = useState(() => localStorage.getItem("sisabisa:search") || "");
   const [filters, setFilters] = useState({ category: "Semua", priceRange: "Semua", sort: "Terbaru", distance: "Semua" });
-  const [page, setPage] = useState("landing");
-  const [selectedProductId, setSelectedProductId] = useState(null);
-  const [selectedOrderId, setSelectedOrderId] = useState(null);
-  const [paymentMethod, setPaymentMethod] = useState("QRIS");
-  const [locationId, setLocationId] = useState("jakarta");
+  const [page, setPage] = useState(() => {
+    const savedPage = localStorage.getItem("sisabisa:page");
+    const sessionUser = safeParseJSON(localStorage.getItem("user"), null);
+    if (savedPage && !authPages.includes(savedPage)) return savedPage;
+    return sessionUser ? (sessionUser.role === "merchant" ? "merchant-dashboard" : "explore") : "landing";
+  });
+  const [selectedProductId, setSelectedProductId] = useState(() => safeParseJSON(localStorage.getItem("sisabisa:selected-product"), null));
+  const [selectedOrderId, setSelectedOrderId] = useState(() => safeParseJSON(localStorage.getItem("sisabisa:selected-order"), null));
+  const [paymentMethod, setPaymentMethod] = useState(() => localStorage.getItem("sisabisa:payment-method") || "QRIS");
+  const [locationId, setLocationId] = useState(() => localStorage.getItem("sisabisa:location") || safeParseJSON(localStorage.getItem("user"), null)?.location_id || "jakarta");
   const [toast, setToast] = useState("");
   const [lastOrderId, setLastOrderId] = useState(null);
   const [checkoutAgreement, setCheckoutAgreement] = useState(false);
-  const [userSection, setUserSection] = useState("home");
-  const [merchantSection, setMerchantSection] = useState("dashboard");
+  const [userSection, setUserSection] = useState(() => localStorage.getItem("sisabisa:user-section") || "home");
+  const [merchantSection, setMerchantSection] = useState(() => localStorage.getItem("sisabisa:merchant-section") || "dashboard");
 
   const authedFetch = async (url, options = {}) => {
     const response = await fetch(url, {
@@ -203,8 +496,14 @@ function App() {
   };
 
   const loadProducts = async () => {
-    const data = await fetch(`${API}/products`).then((res) => res.json());
-    setProducts(data);
+    try {
+      const response = await fetch(`${API}/products`);
+      if (!response.ok) throw new Error("Produk gagal dimuat");
+      const data = await response.json();
+      setProducts(Array.isArray(data) && data.length ? data : fallbackProducts);
+    } catch {
+      setProducts(fallbackProducts);
+    }
   };
 
   const loadOrders = async () => {
@@ -236,10 +535,79 @@ function App() {
   }, [token]);
 
   useEffect(() => {
+    localStorage.setItem("sisabisa:page", page);
+  }, [page]);
+
+  useEffect(() => {
+    localStorage.setItem("sisabisa:search", search);
+  }, [search]);
+
+  useEffect(() => {
+    localStorage.setItem("sisabisa:selected-product", JSON.stringify(selectedProductId));
+  }, [selectedProductId]);
+
+  useEffect(() => {
+    localStorage.setItem("sisabisa:selected-order", JSON.stringify(selectedOrderId));
+  }, [selectedOrderId]);
+
+  useEffect(() => {
+    localStorage.setItem("sisabisa:payment-method", paymentMethod);
+  }, [paymentMethod]);
+
+  useEffect(() => {
+    localStorage.setItem("sisabisa:location", locationId);
+  }, [locationId]);
+
+  useEffect(() => {
+    localStorage.setItem("sisabisa:user-section", userSection);
+  }, [userSection]);
+
+  useEffect(() => {
+    localStorage.setItem("sisabisa:merchant-section", merchantSection);
+  }, [merchantSection]);
+
+  useEffect(() => {
+    if (!token) return;
+    let active = true;
+
+    authedFetch(`${API}/me`)
+      .then((response) => {
+        if (!active) return;
+        setUser(response.user);
+        localStorage.setItem("user", JSON.stringify(response.user));
+        if (response.user?.location_id) {
+          setLocationId(response.user.location_id);
+        }
+        if (protectedPages.includes(page) && response.user.role === "user" && page === "merchant-dashboard") {
+          setPage("explore");
+        }
+      })
+      .catch(() => {
+        if (!active || String(token).startsWith("local-demo-")) return;
+        setUser(null);
+        setToken("");
+        setOrders([]);
+        localStorage.removeItem("user");
+        localStorage.removeItem("token");
+        setPage("landing");
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [token]);
+
+  useEffect(() => {
     if (user?.role === "merchant" && user.location_id) {
       setLocationId(user.location_id);
     }
   }, [user?.id, user?.role, user?.location_id]);
+
+  useEffect(() => {
+    if (!user && protectedPages.includes(page)) {
+      setPage("landing");
+    }
+  }, [page, user]);
 
   const selectedProduct = products.find((product) => product.id === selectedProductId) || null;
   const selectedOrder = orders.find((order) => order.id === selectedOrderId) || null;
@@ -318,6 +686,8 @@ function App() {
     setOrders([]);
     localStorage.removeItem("user");
     localStorage.removeItem("token");
+    localStorage.removeItem("sisabisa:selected-product");
+    localStorage.removeItem("sisabisa:selected-order");
     setUserSection("home");
     setMerchantSection("dashboard");
     setPage("landing");
@@ -376,6 +746,18 @@ function App() {
       setPage("success");
       notify("Pesanan berhasil dibuat");
     } catch (error) {
+      if (mode === "login") {
+        const emailKey = String(form.email || "").trim().toLowerCase();
+        const fallbackUser = localFallbackAccounts[emailKey];
+        if (fallbackUser && form.password === "password123" && fallbackUser.role === role) {
+          saveSession({
+            user: fallbackUser,
+            token: `local-demo-${fallbackUser.role}-${fallbackUser.id}`
+          });
+          notify("Masuk dengan mode lokal");
+          return;
+        }
+      }
       notify(error.message);
     }
   };
@@ -494,7 +876,22 @@ function App() {
   };
 
   return (
-    <div className="sisa-app">
+    <>
+      {toast ? (
+        <div className="toast-viewport">
+          <div className="toast">
+            <Bell size={16} />{toast}
+          </div>
+        </div>
+      ) : null}
+
+      <div className="sisa-app">
+      <div className="ambient-backdrop" aria-hidden="true">
+        <span className="ambient-ribbon ribbon-one" />
+        <span className="ambient-ribbon ribbon-two" />
+        <span className="ambient-ribbon ribbon-three" />
+        <span className="ambient-grid" />
+      </div>
       {landingPages.includes(page) ? (
         <LandingHeader page={page} setPage={openLandingPage} />
       ) : !authPages.includes(page) ? (
@@ -513,8 +910,6 @@ function App() {
           openMerchantArea={openMerchantArea}
         />
       ) : null}
-
-      {toast ? <div className="toast"><Bell size={16} />{toast}</div> : null}
 
       {page === "landing" && <LandingPage setPage={openLandingPage} setFilters={setFilters} setExplorePage={() => setPage("explore")} />}
       {page === "landing-how" && <LandingHowPage setPage={openLandingPage} setExplorePage={() => setPage("explore")} />}
@@ -617,7 +1012,20 @@ function App() {
       {page === "merchant-settings" && user?.role === "merchant" && (
         <SettingsPage role="merchant" user={user} goBack={() => setPage("merchant-dashboard")} saveMerchantProfile={updateMerchantProfile} />
       )}
-    </div>
+
+      {page === "explore" && user?.role !== "merchant" ? (
+        <SupportChatbot
+          user={user}
+          orders={orders}
+          products={products}
+          locationId={locationId}
+          openOrder={openOrder}
+          setPage={setPage}
+        />
+      ) : null}
+
+      </div>
+    </>
   );
 }
 
@@ -714,6 +1122,120 @@ function AppHeader({ user, page, setPage, logout, search, setSearch, locationId,
         </div>
       </div>
     </header>
+  );
+}
+
+function SupportChatbot({ user, orders, products, locationId, openOrder, setPage }) {
+  const [isOpen, setIsOpen] = useState(() => safeParseJSON(localStorage.getItem("sisabisa:assistant-open"), false));
+  const [draft, setDraft] = useState("");
+  const [messages, setMessages] = useState(() => safeParseJSON(localStorage.getItem("sisabisa:assistant-history"), [
+    {
+      role: "assistant",
+      content: "Halo, aku SisaBisa Assistant. Aku bisa bantu pertanyaan pesanan, rekomendasi bakery, pembayaran, refund, dan hal umum lainnya."
+    }
+  ]));
+
+  useEffect(() => {
+    localStorage.setItem("sisabisa:assistant-open", JSON.stringify(isOpen));
+  }, [isOpen]);
+
+  useEffect(() => {
+    localStorage.setItem("sisabisa:assistant-history", JSON.stringify(messages.slice(-18)));
+  }, [messages]);
+
+  const sendMessage = (rawMessage) => {
+    const message = String(rawMessage || "").trim();
+    if (!message) return;
+
+    const userMessage = { role: "user", content: message };
+    const reply = {
+      role: "assistant",
+      content: buildAssistantReply(message, { user, orders, products, locationId })
+    };
+    setMessages((current) => [...current, userMessage, reply].slice(-18));
+    setDraft("");
+    setIsOpen(true);
+  };
+
+  const quickPrompts = [
+    "Pesanan saya",
+    "Rekomendasi pastry",
+    "Cara refund",
+    "Metode pembayaran"
+  ];
+
+  const latestOrder = orders?.[0];
+
+  return (
+    <div className={isOpen ? "support-chat open" : "support-chat"}>
+      {isOpen ? (
+        <section className="support-chat-panel">
+          <header className="support-chat-header">
+            <div className="support-chat-brand">
+              <img src={brandLogo} alt="SisaBisa" />
+              <div>
+                <strong>SisaBisa Assistant</strong>
+                <span><Sparkles size={14} /> Tanya pesanan, rekomendasi, dan bantuan cepat</span>
+              </div>
+            </div>
+            <button className="icon-ghost" onClick={() => setIsOpen(false)} aria-label="Tutup chatbot">
+              <X size={18} />
+            </button>
+          </header>
+
+          <div className="support-chat-messages">
+            {messages.map((message, index) => (
+              <div key={`${message.role}-${index}`} className={message.role === "assistant" ? "chat-bubble assistant" : "chat-bubble user"}>
+                {message.content.split("\n").map((line, lineIndex) => <span key={lineIndex}>{line}</span>)}
+              </div>
+            ))}
+          </div>
+
+          <div className="support-chat-actions">
+            {quickPrompts.map((prompt) => (
+              <button key={prompt} type="button" className="chat-chip" onClick={() => sendMessage(prompt)}>
+                {prompt}
+              </button>
+            ))}
+            {latestOrder ? (
+              <button
+                type="button"
+                className="chat-chip chat-chip-accent"
+                onClick={() => {
+                  openOrder(latestOrder.id);
+                  setIsOpen(false);
+                }}
+              >
+                Buka pesanan terakhir
+              </button>
+            ) : null}
+            <button type="button" className="chat-chip" onClick={() => { setPage("explore"); setIsOpen(false); }}>
+              Lihat explore
+            </button>
+          </div>
+
+          <form className="support-chat-form" onSubmit={(event) => {
+            event.preventDefault();
+            sendMessage(draft);
+          }}>
+            <input
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              placeholder="Tanya soal pesanan, refund, atau minta rekomendasi..."
+            />
+            <button className="primary-btn" type="submit">
+              <SendHorizontal size={16} />
+              Kirim
+            </button>
+          </form>
+        </section>
+      ) : null}
+
+      <button className="support-chat-toggle" onClick={() => setIsOpen((current) => !current)}>
+        <Bot size={18} />
+        <span>Assistant</span>
+      </button>
+    </div>
   );
 }
 
@@ -1702,6 +2224,8 @@ function SmartSupportCard({ order, submitDispute }) {
   const [severity, setSeverity] = useState("ringan");
   const [reason, setReason] = useState("");
   const [evidencePhoto, setEvidencePhoto] = useState("");
+  const latestDispute = order.disputes?.[0] || null;
+  const preview = predictDisputeDecision(severity, reason, evidencePhoto);
 
   return (
     <form className="settings-card smart-support-card" onSubmit={async (event) => {
@@ -1717,10 +2241,24 @@ function SmartSupportCard({ order, submitDispute }) {
         <option value="ringan">Ada masalah kecil</option>
         <option value="serius">Ada masalah serius</option>
       </select>
+      <div className={`ai-preview-card ${preview.tone}`}>
+        <div>
+          <strong>Analisis awal AI</strong>
+          <p>{preview.note}</p>
+        </div>
+        <span>{preview.label}</span>
+      </div>
       <textarea placeholder="Tulis masalah pesanan atau kronologi singkat" value={reason} onChange={(event) => setReason(event.target.value)} />
       <label className="upload-pill"><Camera size={16} /> Upload Bukti<input type="file" accept="image/*" onChange={async (event) => setEvidencePhoto(await readImageFile(event.target.files?.[0]))} /></label>
       {evidencePhoto ? <img className="review-upload-preview" src={evidencePhoto} alt="Bukti komplain" /> : null}
       <button className="primary-btn" type="submit">Minta Analisis AI</button>
+      {latestDispute ? (
+        <div className="support-dispute-result">
+          <strong>Hasil AI terbaru</strong>
+          <p>{latestDispute.ai_decision}</p>
+          <span>{latestDispute.resolution_type}</span>
+        </div>
+      ) : null}
     </form>
   );
 }
@@ -1887,3 +2425,4 @@ function SettingsPage({ role, user, goBack, saveMerchantProfile }) {
 }
 
 createRoot(document.getElementById("root")).render(<App />);
+
